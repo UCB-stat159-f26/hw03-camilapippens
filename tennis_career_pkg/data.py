@@ -40,3 +40,11 @@ def calculate_opponent_age(df, is_female):
                              format="%Y%m%d", errors="coerce")
         return (df["Date"] - dob).dt.days / 365.25
     return pd.to_numeric(df["OpponentAgeRaw"], errors="coerce")
+
+def add_ages(df, player_dob, is_female):
+    """Calculate player age and age difference."""
+    df = df.copy()
+    df["Age"] = (df["Date"] - pd.Timestamp(player_dob)).dt.days / 365.25
+    df["OppAge"] = calculate_opponent_age(df, is_female)
+    df["AgeDiff"] = df["Age"] - df["OppAge"]
+    return df
