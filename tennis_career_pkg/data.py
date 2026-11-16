@@ -1,7 +1,14 @@
+from html import unescape
+from io import StringIO
 import pandas as pd
 import requests
 import json
 import re
+
+PLAYER_DOBS = {
+    "serenawilliams": "1981-09-26",
+    "rafaelnadal": "1986-06-03"
+}
 
 def format_player_name(name):
     """Formats name from user to be used for URL download link."""
@@ -47,4 +54,20 @@ def add_ages(df, player_dob, is_female):
     df["Age"] = (df["Date"] - pd.Timestamp(player_dob)).dt.days / 365.25
     df["OppAge"] = calculate_opponent_age(df, is_female)
     df["AgeDiff"] = df["Age"] - df["OppAge"]
+    return df
+
+def get_player_matches(name, birthdate=None):
+    """Retrieve and clean a player's career matches."""
+    raw = download_data(name)
+    df = parse_js_matches(raw)
+    is_female = (
+        df["OpponentAgeRaw"].astype(str)
+        .str.fullmatch(r"\d{8}").mean() > 0.5
+    )
+    player = format_player_name(name).casefold()
+    dob = birthdate if birthdate is not None else PLAYER_DOBS.get(player)
+    if dob is None:
+        raise ValueError(f"Please provide a birthdate for {name} in format yyyy-mm-dd.")
+    df = add_ages(df, dob, is_female)
+    df.attrs["player"] = name
     return df
