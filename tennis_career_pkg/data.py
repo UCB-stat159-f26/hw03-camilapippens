@@ -1,5 +1,6 @@
 import pandas as pd
 import requests
+import json
 import re
 
 def format_player_name(name):
@@ -18,3 +19,24 @@ def download_data(name):
         raise ValueError(f"No career file found for '{name}'.")
     response.raise_for_status()
     return response.text
+
+def parse_js_matches(js_text):
+    """Converts raw JS match data into a DataFrame."""
+    start = js_text.index("var morematchmx")
+    bracket = js_text.index("[", start)
+    data, _ = json.JSONDecoder().raw_decode(js_text[bracket:])
+
+    df = pd.DataFrame(data)
+    df = df[[0, 1, 4, 11, 16]].copy()
+    df.columns = ["Date", "Tournament", "Win/Lose",
+                  "Opponent", "OpponentAgeRaw"]
+    df["Date"] = pd.to_datetime(df["Date"], format="%Y%m%d")
+    return df
+
+def calculate_opponent_age(df, is_female):
+    """Calculate opponent ages for female or male match data."""
+    if is_female:
+        dob = pd.to_datetime(df["OpponentAgeRaw"],
+                             format="%Y%m%d", errors="coerce")
+        return (df["Date"] - dob).dt.days / 365.25
+    return pd.to_numeric(df["OpponentAgeRaw"], errors="coerce")
